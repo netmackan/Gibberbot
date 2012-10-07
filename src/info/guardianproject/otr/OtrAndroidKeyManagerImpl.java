@@ -463,4 +463,29 @@ public class OtrAndroidKeyManagerImpl implements OtrKeyManager {
 
     }
 
+    public void storeLocalKeyPair(String accountID, KeyPair keyPair) {
+
+        OtrDebugLogger.log("storing local key pair for: " + accountID);
+
+        // Store Public Key.
+        PublicKey pubKey = keyPair.getPublic();
+        X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(pubKey.getEncoded());
+
+        this.store.setProperty(accountID + ".publicKey", x509EncodedKeySpec.getEncoded());
+
+        // Store Private Key.
+        PrivateKey privKey = keyPair.getPrivate();
+        PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(privKey.getEncoded());
+
+        this.store.setProperty(accountID + ".privateKey", pkcs8EncodedKeySpec.getEncoded());
+
+        // Stash fingerprint for consistency.
+        try {
+            String fingerprintString = new OtrCryptoEngineImpl().getFingerprint(pubKey);
+            this.store.setPropertyHex(accountID + ".fingerprint", Hex.decode(fingerprintString));
+        } catch (OtrCryptoException e) {
+            e.printStackTrace();
+        }
+    }
+
 }

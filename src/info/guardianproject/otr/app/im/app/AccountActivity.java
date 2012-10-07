@@ -17,7 +17,28 @@
 
 package info.guardianproject.otr.app.im.app;
 
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Properties;
+
+import org.jivesoftware.smack.util.Base64;
+
+import net.java.otr4j.OtrPolicy;
+
 import info.guardianproject.otr.IOtrKeyManager;
+import info.guardianproject.otr.OtrAndroidKeyManagerImpl;
+import info.guardianproject.otr.OtrChatManager;
 import info.guardianproject.otr.app.im.IImConnection;
 import info.guardianproject.otr.app.im.R;
 import info.guardianproject.otr.app.im.engine.ImConnection;
@@ -70,6 +91,7 @@ public class AccountActivity extends SherlockActivity {
     private long mProviderId = 0;
     private long mAccountId = 0;
     static final int REQUEST_SIGN_IN = RESULT_FIRST_USER + 1;
+    private static final int PICKFILE_IMPORT_KEYPAIR = RESULT_FIRST_USER + 2;
     private static final String[] ACCOUNT_PROJECTION = { Imps.Account._ID, Imps.Account.PROVIDER,
                                                         Imps.Account.USERNAME,
                                                         Imps.Account.PASSWORD,
@@ -577,7 +599,82 @@ public class AccountActivity extends SherlockActivity {
             } else {
                 // sign in failed, let's show the screen!
             }
+        } else if (requestCode == PICKFILE_IMPORT_KEYPAIR) {
+            if (resultCode == RESULT_OK) {
+                Uri uri = intent.getData();
+                File file = new File(uri.getPath());
+                Properties properties = new Properties();
+
+                InputStream in = null;
+                try {
+                    in = new BufferedInputStream(new FileInputStream(file));
+                    properties.load(in);
+
+                    KeyPair keyPair = loadLocalKeyPair(properties, mOriginalUserAccount);
+                    if (keyPair == null) {
+                        Log.i("Markus", "No key-pair found for the account " + mOriginalUserAccount);
+                        Toast.makeText(AccountActivity.this, "No key-pair", Toast.LENGTH_LONG).show();
+                    } else {
+                        OtrChatManager chatManager = OtrChatManager.getInstance(OtrPolicy.OPPORTUNISTIC, this);
+                        OtrAndroidKeyManagerImpl keyManager = chatManager.getKeyManager();
+                        keyManager.storeLocalKeyPair(mOriginalUserAccount, keyPair);
+                        Log.i("Markus", "Stored keypair for " + mOriginalUserAccount);
+                        Toast.makeText(AccountActivity.this, "Imported key-pair stored", Toast.LENGTH_SHORT).show();
+                    }
+                } catch (Exception e) {
+                    Log.e("OTR", "error on importing key-pair", e);
+                    Toast.makeText(AccountActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+                } finally {
+                    if (in != null) {
+                        try {
+                            in.close();
+                        } catch (IOException ignored) {} // NOPMD
+                    }
+                }
+            }
         }
+    }
+
+    public KeyPair loadLocalKeyPair(Properties properties, String accountID) {
+
+        // Load Private Key.
+        byte[] b64PrivKey = null;
+        String value = properties.getProperty(accountID + ".privateKey");
+        if (value != null)
+            b64PrivKey = Base64.decode(value);
+        if (b64PrivKey == null)
+            return null;
+
+        PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(b64PrivKey);
+
+        // Load Public Key.
+        byte[] b64PubKey = null;
+        value = properties.getProperty(accountID + ".publicKey");
+        if (value != null)
+            b64PubKey = Base64.decode(value);
+        if (b64PubKey == null)
+            return null;
+
+        X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(b64PubKey);
+
+        PublicKey publicKey;
+        PrivateKey privateKey;
+
+        // Generate KeyPair.
+        KeyFactory keyFactory;
+        try {
+            keyFactory = KeyFactory.getInstance("DSA");
+            publicKey = keyFactory.generatePublic(publicKeySpec);
+            privateKey = keyFactory.generatePrivate(privateKeySpec);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return null;
+        } catch (InvalidKeySpecException e) {
+            e.printStackTrace();
+            return null;
+        }
+
+        return new KeyPair(publicKey, privateKey);
     }
 
     void updateWidgetState() {
@@ -657,6 +754,12 @@ public class AccountActivity extends SherlockActivity {
             
         case R.id.menu_gen_key:
             otrGenKey();
+            return true;
+        case R.id.menu_import_keypair:
+            Intent intentBrowseFiles = new Intent(Intent.ACTION_GET_CONTENT);
+            intentBrowseFiles.setType("*/*");
+            intentBrowseFiles.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(intentBrowseFiles, PICKFILE_IMPORT_KEYPAIR);
             return true;
 
 
