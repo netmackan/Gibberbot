@@ -40,6 +40,7 @@ android:anyDensity="true"
         android:protectionLevel="dangerous"
         android:label="@string/wo_perm_label"
         android:description="@string/wo_perm_desc" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
     <application android:name=".app.ImApp"
              android:label="@string/im_label"

@@ -20,6 +20,7 @@ package info.guardianproject.otr.app.im.app;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyFactory;
@@ -30,6 +31,7 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.List;
 import java.util.Properties;
 
 import org.jivesoftware.smack.util.Base64;
@@ -58,6 +60,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.os.RemoteException;
@@ -676,6 +679,30 @@ public class AccountActivity extends SherlockActivity {
 
         return new KeyPair(publicKey, privateKey);
     }
+    
+    private void otrExportVerifiedPublicKeys() {
+        FileOutputStream fos = null;
+        try {
+            OtrChatManager chatManager = OtrChatManager.getInstance(OtrPolicy.OPPORTUNISTIC, this);
+            OtrAndroidKeyManagerImpl keyManager = chatManager.getKeyManager();
+            Properties properties = keyManager.getVerifiedPublicKeyEntries();
+            Log.d("Markus", properties.toString());
+            String file = Environment.getExternalStorageDirectory() + "/gibberbot-pubkeys-" + System.currentTimeMillis() + ".properties";
+            fos = new FileOutputStream(file);
+            properties.store(fos, "Gibberbot verified public keys");
+            
+            Toast.makeText(AccountActivity.this, "Exported to " + file, Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(AccountActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+        } finally {
+            if (fos != null) {
+                try {
+                    fos.close();
+                } catch (IOException ignored) {} // NOPMD
+            }
+        }
+    }
 
     void updateWidgetState() {
         boolean goodUsername = mEditUserAccount.getText().length() > 0;
@@ -760,6 +787,9 @@ public class AccountActivity extends SherlockActivity {
             intentBrowseFiles.setType("*/*");
             intentBrowseFiles.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(intentBrowseFiles, PICKFILE_IMPORT_KEYPAIR);
+            return true;
+        case R.id.menu_export_publickeys:
+            otrExportVerifiedPublicKeys();
             return true;
 
 

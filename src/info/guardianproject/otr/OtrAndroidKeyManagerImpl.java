@@ -18,6 +18,7 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Vector;
@@ -370,6 +371,20 @@ public class OtrAndroidKeyManagerImpl implements OtrKeyManager {
             e.printStackTrace();
             return null;
         }
+    }
+    
+    public Properties getVerifiedPublicKeyEntries() {
+        Properties properties = new Properties();
+        for (Object o : this.store.properties.keySet()) {
+            String key = (String) o;
+            if (key.endsWith(".publicKey")) {
+                String userId = key.substring(0, key.indexOf(".publicKey"));
+                if (isVerifiedUser(userId)) {
+                    properties.setProperty(key, this.store.properties.getProperty(key));
+                }
+            }
+        }
+        return properties;
     }
 
     public void savePublicKey(SessionID sessionID, PublicKey pubKey) {

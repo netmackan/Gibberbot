@@ -637,6 +637,7 @@
     <string name="menu_sign_in">Sign In</string>
     <string name="menu_gen_key">Regen Key</string>
     <string name="menu_import_keypair">Import key-pair</string>
+    <string name="menu_export_publickeys">Export verified public keys</string>
     
     <string name="error_suspended_connection">Gibberbot has lost a connection to the network</string>
 	<string name="error_reestablish_connection">Gibberbot is attempting to restablish a connection</string>

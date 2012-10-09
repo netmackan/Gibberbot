@@ -38,4 +38,11 @@
         android:title="@string/menu_import_keypair"
         android:showAsAction="never|withText"
         />
+    
+    <item
+        android:id="@+id/menu_export_publickeys"
+        android:icon="@drawable/ic_menu_key"
+        android:title="@string/menu_export_publickeys"
+        android:showAsAction="never|withText"
+        />
 </menu>
