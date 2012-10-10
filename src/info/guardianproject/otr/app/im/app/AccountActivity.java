@@ -95,6 +95,7 @@ public class AccountActivity extends SherlockActivity {
     private long mAccountId = 0;
     static final int REQUEST_SIGN_IN = RESULT_FIRST_USER + 1;
     private static final int PICKFILE_IMPORT_KEYPAIR = RESULT_FIRST_USER + 2;
+    private static final int PICKFILE_IMPORT_PUBLICKEYS = RESULT_FIRST_USER + 3;
     private static final String[] ACCOUNT_PROJECTION = { Imps.Account._ID, Imps.Account.PROVIDER,
                                                         Imps.Account.USERNAME,
                                                         Imps.Account.PASSWORD,
@@ -635,6 +636,71 @@ public class AccountActivity extends SherlockActivity {
                     }
                 }
             }
+        } else if (requestCode == PICKFILE_IMPORT_PUBLICKEYS) {
+            if (resultCode == RESULT_OK) {
+                Uri uri = intent.getData();
+                File file = new File(uri.getPath());
+                Properties properties = new Properties();
+
+                InputStream in = null;
+                try {
+                    in = new BufferedInputStream(new FileInputStream(file));
+                    properties.load(in);
+
+                    OtrChatManager chatManager = OtrChatManager.getInstance(OtrPolicy.OPPORTUNISTIC, this);
+                    OtrAndroidKeyManagerImpl keyManager = chatManager.getKeyManager();
+
+                    int keys = 0;
+                    for (Object o : properties.keySet()) {
+                        String key = (String) o;
+                        if (key.endsWith(".publicKey")) {
+                            String userId = key.substring(0, key.indexOf(".publicKey"));
+                            Log.d("OTR", "Reading key for user: " + userId);
+
+                            PublicKey publicKey = getPublicKey(properties.getProperty(key));
+                            if (publicKey != null) {
+                                Log.d("OTR", "Got key");
+                                keyManager.storeVerifiedRemotePublicKey(userId, publicKey);
+                                keys++;
+                            }
+                        }
+                    }
+                    Toast.makeText(AccountActivity.this, "Stored " + keys + " public keys", Toast.LENGTH_LONG).show();
+                } catch (Exception e) {
+                    Log.e("OTR", "error on importing key-pair", e);
+                    Toast.makeText(AccountActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+                } finally {
+                    if (in != null) {
+                        try {
+                            in.close();
+                        } catch (IOException ignored) {} // NOPMD
+                    }
+                }
+            }
+        }
+    }
+
+    public PublicKey getPublicKey(String value) {
+
+        byte[] b64PubKey = Base64.decode(value);
+        if (b64PubKey == null) {
+            return null;
+        }
+
+        X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(b64PubKey);
+
+        // Generate KeyPair from spec
+        KeyFactory keyFactory;
+        try {
+            keyFactory = KeyFactory.getInstance("DSA");
+
+            return keyFactory.generatePublic(publicKeySpec);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return null;
+        } catch (InvalidKeySpecException e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
@@ -790,6 +856,12 @@ public class AccountActivity extends SherlockActivity {
             return true;
         case R.id.menu_export_publickeys:
             otrExportVerifiedPublicKeys();
+            return true;
+        case R.id.menu_import_publickeys:
+            intentBrowseFiles = new Intent(Intent.ACTION_GET_CONTENT);
+            intentBrowseFiles.setType("*/*");
+            intentBrowseFiles.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(intentBrowseFiles, PICKFILE_IMPORT_PUBLICKEYS);
             return true;
 
 

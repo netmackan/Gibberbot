@@ -394,6 +394,12 @@ public class OtrAndroidKeyManagerImpl implements OtrKeyManager {
         X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(pubKey.getEncoded());
 
         String userId = sessionID.getUserID();
+        savePublicKey(userId, pubKey);
+    }
+
+    private void savePublicKey(String userId, PublicKey pubKey) {
+        X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(pubKey.getEncoded());
+
         this.store.setProperty(userId + ".publicKey", x509EncodedKeySpec.getEncoded());
         // Stash the associated fingerprint.  This saves calculating it in the future
         // and is useful for transferring rosters to other apps.
@@ -501,6 +507,11 @@ public class OtrAndroidKeyManagerImpl implements OtrKeyManager {
         } catch (OtrCryptoException e) {
             e.printStackTrace();
         }
+    }
+
+    public void storeVerifiedRemotePublicKey(String userId, PublicKey pubKey) {
+        savePublicKey(userId, pubKey);
+        this.store.setProperty(buildPublicKeyVerifiedId(userId, getRemoteFingerprint(userId)), true);
     }
 
 }

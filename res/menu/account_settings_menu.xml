@@ -45,4 +45,11 @@
         android:title="@string/menu_export_publickeys"
         android:showAsAction="never|withText"
         />
+
+    <item
+        android:id="@+id/menu_import_publickeys"
+        android:icon="@drawable/ic_menu_key"
+        android:title="@string/menu_import_publickeys"
+        android:showAsAction="never|withText"
+        />
 </menu>
